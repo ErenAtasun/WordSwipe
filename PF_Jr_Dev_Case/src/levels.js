@@ -14,12 +14,13 @@ export const LEVELS = [
   {
     id: 2,
     name: "Level 2",
-    letters: "C,A,T,S",
-    // C A T S  (row 0)
-    // A   A    (row 1)
-    // T A S    (row 2)
-    // CATS yatay, CAT dikey, SAT dikey (S'den başlıyor), TAS yatay (T'den başlıyor)
-    words: "0,0,CATS,H|0,0,CAT,V|2,0,SAT,V|0,2,TAS,H"
+    letters: "S,T,A,R,I,L,D,E,O,V",
+    // S T A R  (row 0)
+    // A N O I  (row 1)
+    // I D E D  (row 2)
+    // L O V E  (row 3)
+    // STAR yatay, SAIL dikey, RIDE dikey, LOVE yatay
+    words: "0,0,STAR,H|0,0,SAIL,V|3,0,RIDE,V|0,3,LOVE,H"
   },
   {
     id: 3,
