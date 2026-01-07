@@ -1,9 +1,9 @@
-import { Container, Graphics, Sprite } from "pixi.js";
+import { Container, Graphics, Sprite, Text, TextStyle } from "pixi.js";
 import LetterTile from "./LetterTile";
 import { GAME_WIDTH, GAME_HEIGHT } from "..";
 
 /**
- * LetterTray Class - Dairesel harf tepsisi (Swipe/Drag Connect)
+ * LetterTray Class - Circular letter tray (Swipe/Drag Connect)
  */
 export default class LetterTray extends Container {
   constructor(letters, tileSize = 60) {
@@ -12,24 +12,31 @@ export default class LetterTray extends Container {
     this.letters = letters;
     this.tileSize = tileSize;
     this.tiles = [];
-    this.radius = 80; // Biraz küçült
+    this.radius = 80; // Make it a bit smaller
     this.centerX = GAME_WIDTH / 2;
-    this.centerY = GAME_HEIGHT - 260; // Daha yukarı al
+    this.centerY = GAME_HEIGHT - 260; // Move up a bit
 
     // Swipe/Drag state
     this.isDragging = false;
     this.selectedTiles = [];
     this.connectionLine = null;
 
+    // Word preview elements
+    this.wordPreviewContainer = null;
+    this.wordPreviewLetters = [];
+
     this.createTray();
     this.setupDragEvents();
   }
 
   /**
-   * Dairesel tray oluştur
+   * Create circular tray
    */
   createTray() {
-    // Yarı saydam bej/beyaz daire arka plan
+    // Word preview container (above the tray)
+    this.createWordPreview();
+
+    // Semi-transparent beige/white circle background
     const bgCircle = new Graphics();
     bgCircle.beginFill(0xFFF8E7, 0.7);
     bgCircle.drawCircle(0, 0, this.radius + 60);
@@ -38,14 +45,14 @@ export default class LetterTray extends Container {
     bgCircle.y = this.centerY;
     this.addChild(bgCircle);
 
-    // Bağlantı çizgisi için Graphics (harflerden önce ekle)
+    // Graphics for connection line (add before letters)
     this.connectionLine = new Graphics();
     this.addChild(this.connectionLine);
 
-    // Shuffle butonu
+    // Shuffle button
     this.createShuffleButton();
 
-    // Harfleri dairesel olarak yerleştir
+    // Place letters in circle
     const letterCount = this.letters.length;
     const angleStep = (Math.PI * 2) / letterCount;
     const startAngle = -Math.PI / 2;
@@ -69,7 +76,89 @@ export default class LetterTray extends Container {
   }
 
   /**
-   * Shuffle butonu oluştur
+   * Create word preview display above the tray
+   */
+  createWordPreview() {
+    this.wordPreviewContainer = new Container();
+    this.wordPreviewContainer.x = this.centerX;
+    // Position it between letter tray and hint banner (above the circular tray background)
+    this.wordPreviewContainer.y = this.centerY - this.radius - 85;
+    this.addChild(this.wordPreviewContainer);
+
+    // Background rounded rectangle (initially hidden)
+    this.wordPreviewBg = new Graphics();
+    this.wordPreviewContainer.addChild(this.wordPreviewBg);
+  }
+
+  /**
+   * Update word preview display
+   */
+  updateWordPreview() {
+    // Clear previous letters
+    this.wordPreviewLetters.forEach(letter => {
+      this.wordPreviewContainer.removeChild(letter);
+      letter.destroy();
+    });
+    this.wordPreviewLetters = [];
+    this.wordPreviewBg.clear();
+
+    if (this.selectedTiles.length === 0) return;
+
+    const word = this.getCurrentWord();
+    const letterSpacing = 40;
+    const totalWidth = word.length * letterSpacing;
+    const startX = -totalWidth / 2 + letterSpacing / 2;
+
+    // Draw background
+    const bgPadding = 15;
+    const bgHeight = 50;
+    this.wordPreviewBg.beginFill(0x2D5016, 0.9);
+    this.wordPreviewBg.drawRoundedRect(
+      -totalWidth / 2 - bgPadding,
+      -bgHeight / 2,
+      totalWidth + bgPadding * 2,
+      bgHeight,
+      12
+    );
+    this.wordPreviewBg.endFill();
+
+    // Create letter style
+    const letterStyle = new TextStyle({
+      fontFamily: 'Arial, sans-serif',
+      fontSize: 28,
+      fontWeight: 'bold',
+      fill: 0xFFFFFF,
+      dropShadow: true,
+      dropShadowColor: 0x000000,
+      dropShadowBlur: 2,
+      dropShadowDistance: 1
+    });
+
+    // Add each letter
+    word.split('').forEach((char, index) => {
+      const letterText = new Text(char, letterStyle);
+      letterText.anchor.set(0.5);
+      letterText.x = startX + index * letterSpacing;
+      letterText.y = 0;
+
+      // Pop-in animation
+      letterText.scale.set(0);
+      import("gsap").then((gsap) => {
+        gsap.default.to(letterText.scale, {
+          x: 1,
+          y: 1,
+          duration: 0.15,
+          ease: "back.out(2)"
+        });
+      });
+
+      this.wordPreviewContainer.addChild(letterText);
+      this.wordPreviewLetters.push(letterText);
+    });
+  }
+
+  /**
+   * Create shuffle button
    */
   createShuffleButton() {
     try {
@@ -103,12 +192,12 @@ export default class LetterTray extends Container {
   }
 
   /**
-   * Drag eventlerini ayarla
+   * Setup drag events
    */
   setupDragEvents() {
-    // Stage üzerinde pointer eventleri
+    // Pointer events on stage
     this.interactive = true;
-    this.hitArea = { contains: () => true }; // Tüm alanı yakala
+    this.hitArea = { contains: () => true }; // Capture entire area
 
     this.on('pointerdown', this.onDragStart.bind(this));
     this.on('pointermove', this.onDragMove.bind(this));
@@ -117,7 +206,7 @@ export default class LetterTray extends Container {
   }
 
   /**
-   * Drag başlangıcı
+   * Drag start
    */
   onDragStart(event) {
     const pos = event.data.global;
@@ -128,12 +217,13 @@ export default class LetterTray extends Container {
       this.selectedTiles = [tile];
       tile.select();
       this.updateConnectionLine();
-      console.log("Drag başladı:", tile.letter);
+      this.updateWordPreview();
+      console.log("Drag started:", tile.letter);
     }
   }
 
   /**
-   * Drag devam ediyor
+   * Drag in progress
    */
   onDragMove(event) {
     if (!this.isDragging) return;
@@ -142,40 +232,41 @@ export default class LetterTray extends Container {
     const tile = this.getTileAtPosition(pos.x, pos.y);
 
     if (tile && !tile.isUsed && !this.selectedTiles.includes(tile)) {
-      // Yeni harf seçildi
+      // New letter selected
       this.selectedTiles.push(tile);
       tile.select();
-      console.log("Harf eklendi:", tile.letter, "Kelime:", this.getCurrentWord());
+      this.updateWordPreview();
+      console.log("Letter added:", tile.letter, "Word:", this.getCurrentWord());
     }
 
-    // Çizgiyi güncelle (parmak pozisyonu dahil)
+    // Update line (including finger position)
     this.updateConnectionLine(pos);
   }
 
   /**
-   * Drag bitti
+   * Drag ended
    */
   onDragEnd(event) {
     if (!this.isDragging) return;
 
     this.isDragging = false;
     const word = this.getCurrentWord();
-    console.log("Drag bitti. Kelime:", word);
+    console.log("Drag ended. Word:", word);
 
-    // Seçilen harfleri işle
+    // Process selected letters
     if (word.length > 0 && this.onWordCompleteCallback) {
       this.onWordCompleteCallback(word, this.selectedTiles);
     }
 
-    // Seçimleri temizle
+    // Clear selection
     this.clearSelection();
   }
 
   /**
-   * Pozisyondaki tile'ı bul
+   * Find tile at position
    */
   getTileAtPosition(x, y) {
-    const hitRadius = 35; // Tıklama toleransı
+    const hitRadius = 35; // Click tolerance
 
     for (const tile of this.tiles) {
       const dx = x - tile.x;
@@ -190,63 +281,64 @@ export default class LetterTray extends Container {
   }
 
   /**
-   * Şu anki kelimeyi al
+   * Get current word
    */
   getCurrentWord() {
     return this.selectedTiles.map(t => t.letter).join('');
   }
 
   /**
-   * Bağlantı çizgisini güncelle
+   * Update connection line
    */
   updateConnectionLine(currentPos = null) {
     this.connectionLine.clear();
 
     if (this.selectedTiles.length === 0) return;
 
-    this.connectionLine.lineStyle(6, 0xF39C12, 0.8); // Turuncu çizgi
+    this.connectionLine.lineStyle(6, 0xF39C12, 0.8); // Orange line
 
-    // İlk harften başla
+    // Start from first letter
     const first = this.selectedTiles[0];
     this.connectionLine.moveTo(first.x, first.y);
 
-    // Her seçili harfe çizgi çek
+    // Draw line to each selected letter
     for (let i = 1; i < this.selectedTiles.length; i++) {
       const tile = this.selectedTiles[i];
       this.connectionLine.lineTo(tile.x, tile.y);
     }
 
-    // Eğer sürükleme devam ediyorsa, parmak pozisyonuna da çiz
+    // If dragging continues, draw to finger position too
     if (currentPos && this.isDragging) {
       this.connectionLine.lineTo(currentPos.x, currentPos.y);
     }
   }
 
   /**
-   * Seçimleri temizle
+   * Clear selection
    */
   clearSelection() {
     this.selectedTiles.forEach(tile => tile.deselect());
     this.selectedTiles = [];
     this.connectionLine.clear();
+    this.updateWordPreview();
   }
 
   /**
-   * Kelime tamamlandı callback'i
+   * Word complete callback
    */
   setOnWordCompleteCallback(cb) {
     this.onWordCompleteCallback = cb;
   }
 
   /**
-   * Eski callback uyumluluğu için (artık kullanılmıyor)
+   * Old callback compatibility (no longer used)
    */
   setOnLetterClickCallback(cb) {
-    // Bu artık kullanılmıyor, yerine setOnWordCompleteCallback kullanılacak
+    // This is no longer used, use setOnWordCompleteCallback instead
   }
 
   /**
-   * Tüm harfleri resetle
+   * Reset all letters
    */
   resetAll() {
     this.tiles.forEach(t => t.setUsed(false));
@@ -254,14 +346,14 @@ export default class LetterTray extends Container {
   }
 
   /**
-   * Belirli harfleri used olarak işaretle
+   * Mark specific tiles as used
    */
   markTilesAsUsed(tiles) {
     tiles.forEach(t => t.setUsed(true));
   }
 
   /**
-   * Hata animasyonu
+   * Error animation
    */
   onError() {
     import("gsap").then((gsap) => {
@@ -281,7 +373,7 @@ export default class LetterTray extends Container {
   }
 
   /**
-   * Harfleri karıştır
+   * Shuffle letters
    */
   shuffle() {
     import("gsap").then((gsap) => {

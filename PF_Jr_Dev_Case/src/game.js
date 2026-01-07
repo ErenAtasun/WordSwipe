@@ -1,5 +1,5 @@
 import gsap from "gsap";
-import { Container, Sprite, Graphics, Text } from "pixi.js";
+import { Container, Sprite, Graphics, Text, Rectangle } from "pixi.js";
 import { GAME_HEIGHT, GAME_WIDTH } from ".";
 import Level from "./classes/Level";
 import Grid from "./classes/Grid";
@@ -10,13 +10,13 @@ import SoundManager from "./classes/SoundManager";
 import { LEVELS, getLevelById, getTotalLevels } from "./levels";
 
 /**
- * Game Class - Ana oyun kontrolcüsü
+ * Game Class - Main game controller
  */
 export default class Game extends Container {
   constructor() {
     super();
 
-    // Level yönetimi
+    // Level management
     this.currentLevelId = 1;
     this.totalLevels = getTotalLevels();
 
@@ -30,68 +30,71 @@ export default class Game extends Container {
   }
 
   async init() {
-    // Arka plan
+    // Background
     this.createBackground();
 
-    // UI oluştur (level yüklenmeden önce)
+    // Create UI (before level loads)
     this.createUI();
 
-    // İlk level'i yükle
+    // Load first level
     this.loadLevel(this.currentLevelId);
   }
 
   /**
-   * Level yükle
+   * Load level
    */
   loadLevel(levelId) {
-    // Mevcut level elemanlarını temizle
+    // Clear current level elements
     this.clearLevel();
 
-    // Level verisini al
+    // Get level data
     this.levelData = getLevelById(levelId);
     if (!this.levelData) {
-      console.error(`Level ${levelId} bulunamadı!`);
+      console.error(`Level ${levelId} not found!`);
       return;
     }
 
-    // Level oluştur
+    // Create level
     this.level = new Level(this.levelData.letters, this.levelData.words);
 
-    // Grid oluştur
+    // Create grid
     this.grid = new Grid(this.level);
     this.addChild(this.grid);
 
-    // Validator oluştur
+    // Update hint banner position based on grid size
+    this.updateHintPosition();
+
+    // Create validator
     this.validator = new WordValidator(this.level, this.grid);
 
-    // Tray oluştur
+    // Create tray
     this.tray = new LetterTray(this.level.letters);
     this.addChild(this.tray);
 
-    // Word complete callback'ini bağla (Swipe mechanic)
+    // Bind word complete callback (Swipe mechanic)
     this.tray.setOnWordCompleteCallback(this.handleWordComplete.bind(this));
 
-    // İlk hedef kelimeyi bul
+    // Find first target word
     this.currentTargetWord = null;
     this.enteredLetters = [];
     this.enteredTiles = [];
-    this.enteredCells = []; // Hangi hücrelere yerleştirildiğini takip et
+    this.enteredCells = []; // Track which cells are filled
     this.findNextTarget();
 
-    // UI güncelle
+    // Update UI
     this.updateUI();
 
-    // Level 1'de tutorial göster
+    // Show tutorial on Level 1
     if (levelId === 1) {
       this.startTutorial();
     }
   }
 
   /**
-   * Mevcut level'i temizle
+   * Clear current level
    */
   clearLevel() {
-    // Tutorial'ı temizle
+    // Clear tutorial
     this.stopTutorial();
 
     if (this.grid) {
@@ -111,10 +114,10 @@ export default class Game extends Container {
   }
 
   /**
-   * Tutorial başlat (Level 1 için)
+   * Start tutorial (for Level 1)
    */
   startTutorial() {
-    // Biraz gecikme ile başlat
+    // Start with a slight delay
     gsap.delayedCall(0.8, () => {
       if (!this.tray) return;
 
@@ -125,7 +128,7 @@ export default class Game extends Container {
   }
 
   /**
-   * Tutorial'ı durdur
+   * Stop tutorial
    */
   stopTutorial() {
     if (this.tutorial) {
@@ -136,17 +139,17 @@ export default class Game extends Container {
   }
 
   /**
-   * Arka plan oluştur
+   * Create background
    */
   createBackground() {
-    // Arka plan sprite'ı varsa kullan
+    // Use background sprite if available
     try {
       const bg = Sprite.from("background");
       bg.width = GAME_WIDTH;
       bg.height = GAME_HEIGHT;
       this.addChildAt(bg, 0);
     } catch (e) {
-      // Sprite yoksa gradient oluştur
+      // Create gradient if sprite not available
       const bg = new Graphics();
       bg.beginFill(0x1e1e37);
       bg.drawRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
@@ -156,85 +159,85 @@ export default class Game extends Container {
   }
 
   /**
-   * Sıradaki hedef kelimeyi bul ve ayarla
+   * Find and set next target word
    */
   findNextTarget() {
-    // Henüz tamamlanmamış ilk kelimeyi bul
+    // Find first incomplete word
     const nextWord = this.level.words.find(w => !w.completed);
 
     if (nextWord) {
       this.setTargetWord(nextWord);
     } else {
-      // Hepsi bitti
+      // All complete
       this.onGameComplete();
     }
   }
 
   setTargetWord(wordData) {
     this.currentTargetWord = wordData;
-    this.enteredLetters = []; // Bu kelime için girilen harfler
-    this.enteredTiles = []; // Bu kelime için kullanılan tile'lar
-    this.enteredCells = []; // Bu kelime için yerleştirilen hücreler
+    this.enteredLetters = []; // Letters entered for this word
+    this.enteredTiles = []; // Tiles used for this word
+    this.enteredCells = []; // Cells filled for this word
 
     this.grid.highlightWordTarget(wordData);
-    console.log("Yeni hedef:", wordData.word);
+    console.log("New target:", wordData.word);
 
-    // Hint banner güncelle
+    // Update hint banner
     if (this.hintText) {
       this.hintText.text = `Connect the letters ${wordData.word}`;
     }
 
-    // Tutorial'ı bu kelime için güncelle (Level 1'de)
+    // Update tutorial for this word (Level 1)
     if (this.tutorial && this.currentLevelId === 1) {
       this.tutorial.startForWord(wordData.word);
     }
   }
 
   /**
-   * Kelime tamamlandığında (Swipe gesture)
+   * When word is completed (Swipe gesture)
    */
   handleWordComplete(word, tiles) {
-    console.log("Kelime tamamlandı:", word);
+    console.log("Word completed:", word);
 
-    // Tutorial'ı geçici olarak durdur (oyuncu hareket yaptı)
+    // Temporarily stop tutorial (player made a move)
     if (this.tutorial) {
       this.tutorial.stopAnimation();
     }
 
-    // Bu kelime level'deki kelimelerden biri mi?
+    // Is this word one of the level words?
     const matchedWord = this.level.words.find(w =>
       w.word === word && !w.completed
     );
 
     if (matchedWord) {
-      // DOĞRU KELIME!
-      console.log("Doğru kelime bulundu:", matchedWord.word);
+      // CORRECT WORD!
+      console.log("Correct word found:", matchedWord.word);
 
-      // Ses efektleri çal
+      // Play sound effects
       SoundManager.play('correct');
       SoundManager.play('wordComplete');
 
-      // Grid'e yerleştir
+      // Place on grid
       this.revealWordOnGrid(matchedWord);
 
-      // Kelimeyi tamamla
+      // Complete the word
       this.completeWord(matchedWord);
 
-      // Sıradaki kelimeye geç (tutorial setTargetWord'de yeniden başlatılacak)
+      // Move to next word (tutorial will restart in setTargetWord)
       import("gsap").then(gsap => {
         gsap.default.delayedCall(0.5, () => this.findNextTarget());
       });
 
     } else {
-      // YANLIŞ KELIME
-      console.log("Yanlış kelime:", word);
+      // WRONG WORD
+      console.log("Wrong word:", word);
 
-      // Yanlış ses efekti
+      // Play wrong sound effect
       SoundManager.play('wrong');
 
       this.tray.onError();
 
-      // Yanlış kelimeden sonra tutorial'ı tekrar başlat (Level 1'de)
+      // Restart tutorial after wrong word (Level 1)
       if (this.tutorial && this.currentLevelId === 1 && this.currentTargetWord) {
         import("gsap").then(gsap => {
           gsap.default.delayedCall(0.5, () => {
@@ -247,47 +250,47 @@ export default class Game extends Container {
     }
 
 
-    // Tray'i resetle
+    // Reset tray
     this.tray.resetAll();
   }
 
   /**
-   * Grid üzerindeki geçici harfe tıklandığında (geri silme)
+   * When temporary letter on grid is clicked (delete back)
    */
   handleTempLetterClick(cellX, cellY, letter) {
-    console.log("Geçici harf tıklandı:", letter, "at", cellX, cellY);
+    console.log("Temporary letter clicked:", letter, "at", cellX, cellY);
 
-    // Bu hücreyi enteredCells'de bul
+    // Find this cell in enteredCells
     const cellIndex = this.enteredCells.findIndex(c => c.x === cellX && c.y === cellY);
     if (cellIndex === -1) {
-      console.error("Hücre bulunamadı!");
+      console.error("Cell not found!");
       return;
     }
 
-    // Grid'den harfi kaldır
+    // Remove letter from grid
     this.grid.removeTemporaryLetter(cellX, cellY);
 
-    // İlgili tile'ı geri getir
+    // Bring back the related tile
     const tile = this.enteredTiles[cellIndex];
     if (tile) {
       tile.setUsed(false);
     }
 
-    // Dizilerden kaldır
+    // Remove from arrays
     this.enteredLetters.splice(cellIndex, 1);
     this.enteredTiles.splice(cellIndex, 1);
     this.enteredCells.splice(cellIndex, 1);
 
-    console.log("Harf kaldırıldı. Kalan:", this.enteredLetters);
+    console.log("Letter removed. Remaining:", this.enteredLetters);
   }
 
   /**
-   * Hedef kelime üzerindeki ilk boş index'i bul
+   * Find first empty index on target word
    */
   getNextEmptyIndex(wordData) {
     const { x, y, word, orientation } = wordData;
 
-    // Basitçe ilk boş (ne kalıcı ne geçici harf olan) hücreyi bul
+    // Simply find first empty cell (neither permanent nor temporary letter)
     for (let i = 0; i < word.length; i++) {
       let cellX, cellY;
       if (orientation === 'H') {
@@ -298,22 +301,22 @@ export default class Game extends Container {
         cellY = y + i;
       }
 
-      // 1. Kalıcı harf kontrolü
+      // 1. Check permanent letter
       if (this.grid.hasLetter(cellX, cellY)) {
         continue;
       }
 
-      // 2. Geçici harf kontrolü (Visual)
+      // 2. Check temporary letter (Visual)
       const cell = this.grid.cells[cellY] && this.grid.cells[cellY][cellX];
       if (cell) {
         const existingText = cell.getChildByName("letterText");
         if (existingText) {
-          // Burada zaten bir harf var
+          // There's already a letter here
           continue;
         }
       }
 
-      // Eğer buraya geldiysek, hücre boştur.
+      // If we got here, cell is empty
       return i;
     }
 
@@ -321,7 +324,7 @@ export default class Game extends Container {
   }
 
   /**
-   * Kelime tamamen doldu mu? (Kalıcı + Geçici)
+   * Is word completely filled? (Permanent + Temporary)
    */
   isWordFilled(wordData) {
     const { x, y, word, orientation } = wordData;
@@ -341,10 +344,10 @@ export default class Game extends Container {
   }
 
   /**
-   * Hedef kelimeyi kontrol et
+   * Check target word
    */
   checkCurrentTarget() {
-    // Kelimeyi oluştur: Kalıcı harfler + Girilen harfler (boşluk sırasına göre)
+    // Build word: Permanent letters + Entered letters (in gap order)
     let constructedWord = "";
     const { x, y, word, orientation } = this.currentTargetWord;
 
@@ -365,55 +368,55 @@ export default class Game extends Container {
       }
     }
 
-    console.log("Kontrol edilen kelime:", constructedWord);
+    console.log("Checking word:", constructedWord);
 
     if (constructedWord === word) {
-      // DOĞRU!
-      console.log("Doğru!");
+      // CORRECT!
+      console.log("Correct!");
 
-      // 1. Grid'e kalıcı olarak işle
+      // 1. Mark as permanent on grid
       this.completeWord(this.currentTargetWord);
-      this.revealWordOnGrid(this.currentTargetWord); // Kalıcı yap
+      this.revealWordOnGrid(this.currentTargetWord); // Make permanent
 
-      // 2. Tile'ları geri getir (Kullanıcı tekrar kullanabilsin)
+      // 2. Return tiles (User can use them again)
       this.enteredLetters = [];
       const tilesToReset = [...this.enteredTiles];
       this.enteredTiles = [];
       this.enteredCells = [];
 
-      // Biraz gecikmeli gelsin
+      // Return with slight delay
       gsap.delayedCall(0.5, () => {
         tilesToReset.forEach(t => t.setUsed(false));
       });
 
-      // 3. Sıradaki kelimeye geç
+      // 3. Move to next word
       gsap.delayedCall(0.5, () => this.findNextTarget());
 
     } else {
-      // YANLIŞ!
-      console.log("Yanlış!");
+      // WRONG!
+      console.log("Wrong!");
 
-      // Harfleri geri uçur
+      // Fly letters back
       this.animateReturnLetters(this.currentTargetWord);
 
-      // Hata efekti (Tepsi sallanır)
+      // Error effect (Tray shakes)
       this.tray.onError();
     }
   }
 
   /**
-   * Yanlış kelime durumunda harfleri grid'den tepsiye uçur
+   * On wrong word, fly letters from grid back to tray
    */
   animateReturnLetters(wordData) {
     const { x, y, word, orientation } = wordData;
 
-    // Grid üzerindeki geçici harfleri bul ve animasyon başlat
-    // enteredTiles dizisi sırasıyla girilen harfleri tutuyor.
-    // enteredLetters dizisi harfleri tutuyor.
-    // Ancak grid üzerindeki konumlarını bulmamız lazım.
+    // Find temporary letters on grid and start animation
+    // enteredTiles array holds entered letters in order
+    // enteredLetters array holds the letters
+    // We need to find their positions on the grid
 
-    // Girilen harfler kelimenin boşluklarına sırayla yerleşti.
-    // Kelimeyi tekrar tarayıp hangi grid hücresinin hangi tile ile eşleştiğini bulalım.
+    // Entered letters were placed in word gaps in order
+    // Scan word again to find which grid cell matches which tile
 
     let entryIndex = 0;
     for (let i = 0; i < word.length; i++) {
@@ -421,28 +424,20 @@ export default class Game extends Container {
       if (orientation === 'H') { cx = x + i; cy = y; }
       else { cx = x; cy = y + i; }
 
-      // Eğer kalıcı harf varsa atla
+      // Skip if permanent letter
       if (this.grid.hasLetter(cx, cy)) continue;
 
-      // Bu hücre geçici harf içeriyor olmalı
+      // This cell should contain temporary letter
       if (entryIndex < this.enteredTiles.length) {
         const tile = this.enteredTiles[entryIndex];
-        // Grid hücresinin dünya pozisyonu
-        const startPos = this.grid.gridToWorld(cx, cy); // Cells center
+        // Grid cell world position
+        const startPos = this.grid.gridToWorld(cx, cy); // Cell center
 
-        // Hedef pozisyon (Tray'deki tile pozisyonu)
-        // Tile'ın container içindeki pozisyonu -> Dünya pozisyonuna çevir
-        // Tray container'ı 0,0'da ise tile.x/y direkt dünya pozisyonudur (Game'e eklendiği için).
-        // Ama Game container'ı da stage içinde.
-        // Tile global pos hesaplamaya gerek yok, çünkü ikisi de Game container içinde.
-        // Grid.x/y + cellPos -> start
-        // Tray tile -> end
-
-        // Uçan harf oluştur (Geçici)
+        // Create flying letter (Temporary)
         const flyingLetter = new Text(tile.letter, {
           fontFamily: 'Arial',
           fontSize: 32,
-          fill: 0xF1C40F, // Sarı
+          fill: 0xF1C40F, // Yellow
           fontWeight: 'bold',
           align: 'center'
         });
@@ -451,10 +446,10 @@ export default class Game extends Container {
         flyingLetter.y = startPos.y;
         this.addChild(flyingLetter);
 
-        // Grid'deki yazıyı hemen sil
+        // Delete text from grid immediately
         this.grid.removeTemporaryLetter(cx, cy);
 
-        // Animasyon
+        // Animation
         gsap.to(flyingLetter, {
           x: tile.x + this.tray.x, // Tray container position might differ
           y: tile.y + this.tray.y,
@@ -463,7 +458,7 @@ export default class Game extends Container {
           onComplete: () => {
             this.removeChild(flyingLetter);
             flyingLetter.destroy();
-            // Tile'ı görünür yap
+            // Make tile visible
             tile.setUsed(false);
           }
         });
@@ -472,7 +467,7 @@ export default class Game extends Container {
       }
     }
 
-    // Temizlik
+    // Cleanup
     this.enteredLetters = [];
     this.enteredTiles = [];
     this.enteredCells = [];
@@ -485,7 +480,7 @@ export default class Game extends Container {
       if (orientation === 'H') { cx = x + i; cy = y; }
       else { cx = x; cy = y + i; }
 
-      // Sadece eğer kalıcı değilse sil
+      // Only delete if not permanent
       if (!this.grid.hasLetter(cx, cy)) {
         this.grid.removeLetter(cx, cy);
       }
@@ -493,7 +488,7 @@ export default class Game extends Container {
   }
 
   /**
-   * Kelime her değiştiğinde kontrol et
+   * Check every time word changes
    */
   handleWordCheck(word, previewTiles) {
     // This method is no longer used with the new targeted grid logic.
@@ -501,7 +496,7 @@ export default class Game extends Container {
   }
 
   /**
-   * Grid üzerinde kelimeyi aç
+   * Reveal word on grid
    */
   revealWordOnGrid(wordData) {
     const { x, y, word, orientation } = wordData;
@@ -517,14 +512,14 @@ export default class Game extends Container {
       }
 
       const letter = word[i];
-      // Grid'e harfi koy
+      // Place letter on grid
       this.grid.placeLetter(cellX, cellY, letter);
       this.grid.showLetter(cellX, cellY, letter);
     }
   }
 
   /**
-   * Tüm kelimeleri kontrol et
+   * Check all words
    */
   checkAllWords() {
     if (this.level.isAllWordsCompleted()) {
@@ -533,27 +528,27 @@ export default class Game extends Container {
   }
 
   /**
-   * Kelimeyi tamamla
+   * Complete word
    */
   completeWord(wordData) {
     if (this.level.completeWord(wordData.word)) {
-      // UI güncelle
+      // Update UI
       this.updateUI();
 
-      // checkAllWords kaldırıldı çünkü findNextTarget() döngüsü zaten bitişi kontrol ediyor.
-      // Bu çağrı onGameComplete'in iki kez çalışmasına sebep oluyordu.
+      // checkAllWords removed because findNextTarget() loop already checks completion
+      // This call was causing onGameComplete to run twice
     }
   }
 
   /**
-   * Kelime tamamlandı animasyonu (Grid üzerinde highlight)
+   * Word complete animation (highlight on grid)
    */
   showWordComplete(wordData) {
     this.highlightWordInGrid(wordData);
   }
 
   /**
-   * Grid'de kelimeyi vurgula
+   * Highlight word in grid
    */
   highlightWordInGrid(wordData) {
     const { x, y, word, orientation } = wordData;
@@ -570,7 +565,7 @@ export default class Game extends Container {
 
       const cell = this.grid.cells[cellY] && this.grid.cells[cellY][cellX];
       if (cell) {
-        // greenPane asset kullan
+        // Use greenPane asset
         try {
           const highlight = Sprite.from("greenPane");
           highlight.width = this.grid.cellSize;
@@ -584,7 +579,7 @@ export default class Game extends Container {
             delay: i * 0.1
           });
         } catch (e) {
-          // Asset yoksa Graphics kullan
+          // Use Graphics if asset not available
           const highlight = new Graphics();
           highlight.beginFill(0x5cb85c, 0.5);
           highlight.drawRoundedRect(2, 2, this.grid.cellSize - 4, this.grid.cellSize - 4, 5);
@@ -603,34 +598,34 @@ export default class Game extends Container {
   }
 
   /**
-   * Oyun tamamlandı
+   * Game complete
    */
   onGameComplete() {
-    // Level tamamlama sesi
+    // Level complete sound
     SoundManager.play('levelComplete');
 
-    // Oyun bitiş ekranı
-    // Biraz gecikmeli
+    // Game complete screen
+    // With slight delay
     gsap.delayedCall(1, () => {
       this.showGameCompleteScreen();
     });
   }
 
   /**
-   * Sonraki level'e geç
+   * Go to next level
    */
   nextLevel() {
     if (this.currentLevelId < this.totalLevels) {
       this.currentLevelId++;
       this.loadLevel(this.currentLevelId);
     } else {
-      // Tüm leveller tamamlandı
+      // All levels complete
       this.showAllLevelsComplete();
     }
   }
 
   /**
-   * Oyun bitiş ekranı
+   * Game complete screen
    */
   showGameCompleteScreen() {
     const overlay = new Graphics();
@@ -641,7 +636,7 @@ export default class Game extends Container {
     this.addChild(overlay);
     overlay.name = "completeOverlay";
 
-    // Başarı mesajı arka planı
+    // Success message background
     const successBg = new Graphics();
     successBg.beginFill(0x2a4a2a, 0.95);
     successBg.lineStyle(4, 0x5cb85c);
@@ -651,7 +646,7 @@ export default class Game extends Container {
     successBg.y = GAME_HEIGHT / 2 - 125;
     overlay.addChild(successBg);
 
-    // Başarı ikonu (tick)
+    // Success icon (tick)
     try {
       const tick = Sprite.from("tick");
       tick.width = 80;
@@ -669,10 +664,10 @@ export default class Game extends Container {
         ease: "back.out(1.7)"
       });
     } catch (e) {
-      // Tick asset yoksa devam et
+      // Continue if tick asset not available
     }
 
-    const completeText = new Text("Level Tamamlandı!", {
+    const completeText = new Text("Level Complete!", {
       fontFamily: 'Arial',
       fontSize: 28,
       fill: 0xffffff,
@@ -685,25 +680,37 @@ export default class Game extends Container {
     completeText.alpha = 0;
     overlay.addChild(completeText);
 
-    // Sonraki level butonu
+    // Next level button
     const hasNextLevel = this.currentLevelId < this.totalLevels;
-    const buttonText = hasNextLevel ? "Sonraki Level" : "Tüm Leveller Tamamlandı!";
+    const buttonText = hasNextLevel ? "Next Level" : "All Levels Complete!";
+
+    // Larger button for better touch/click experience
+    const buttonWidth = 280;
+    const buttonHeight = 70;
+    const hitPadding = 20; // Extra hit area padding
 
     const nextButton = new Graphics();
     nextButton.beginFill(0x4a90e2);
     nextButton.lineStyle(3, 0x6bb3ff);
-    nextButton.drawRoundedRect(0, 0, 200, 50, 10);
+    nextButton.drawRoundedRect(0, 0, buttonWidth, buttonHeight, 15);
     nextButton.endFill();
-    nextButton.x = GAME_WIDTH / 2 - 100;
-    nextButton.y = GAME_HEIGHT / 2 + 70;
+    nextButton.x = GAME_WIDTH / 2 - buttonWidth / 2;
+    nextButton.y = GAME_HEIGHT / 2 + 60;
     nextButton.interactive = true;
     nextButton.buttonMode = true;
     nextButton.cursor = 'pointer';
+    // Extend hit area for easier clicking
+    nextButton.hitArea = new Rectangle(
+      -hitPadding,
+      -hitPadding,
+      buttonWidth + hitPadding * 2,
+      buttonHeight + hitPadding * 2
+    );
     overlay.addChild(nextButton);
 
     const buttonLabel = new Text(buttonText, {
       fontFamily: 'Arial',
-      fontSize: 18,
+      fontSize: 22,
       fill: 0xffffff,
       fontWeight: 'bold',
       align: 'center'
@@ -714,7 +721,7 @@ export default class Game extends Container {
     buttonLabel.alpha = 0;
     overlay.addChild(buttonLabel);
 
-    // Buton hover efekti
+    // Button hover effect
     nextButton.on('pointerover', () => {
       gsap.to(nextButton, { alpha: 0.8, duration: 0.2 });
     });
@@ -722,7 +729,7 @@ export default class Game extends Container {
       gsap.to(nextButton, { alpha: 1, duration: 0.2 });
     });
 
-    // Buton tıklama
+    // Button click
     if (hasNextLevel) {
       nextButton.on('pointerdown', () => {
         this.removeChild(overlay);
@@ -731,7 +738,7 @@ export default class Game extends Container {
       });
     }
 
-    // Animasyon
+    // Animation
     gsap.to(completeText, {
       alpha: 1,
       duration: 0.5,
@@ -748,7 +755,7 @@ export default class Game extends Container {
   }
 
   /**
-   * Tüm leveller tamamlandı ekranı
+   * All levels complete screen
    */
   showAllLevelsComplete() {
     const overlay = new Graphics();
@@ -767,7 +774,7 @@ export default class Game extends Container {
     successBg.y = GAME_HEIGHT / 2 - 150;
     overlay.addChild(successBg);
 
-    const title = new Text("TEBRİKLER!", {
+    const title = new Text("CONGRATULATIONS!", {
       fontFamily: 'Arial',
       fontSize: 36,
       fill: 0xffffff,
@@ -779,7 +786,7 @@ export default class Game extends Container {
     title.y = GAME_HEIGHT / 2 - 80;
     overlay.addChild(title);
 
-    const message = new Text("Tüm Levelleri Tamamladınız!", {
+    const message = new Text("You Completed All Levels!", {
       fontFamily: 'Arial',
       fontSize: 24,
       fill: 0xffffff,
@@ -790,21 +797,32 @@ export default class Game extends Container {
     message.y = GAME_HEIGHT / 2 - 20;
     overlay.addChild(message);
 
+    // Larger button for better touch/click experience
+    const restartBtnWidth = 280;
+    const restartBtnHeight = 70;
+    const restartHitPadding = 20;
+
     const restartButton = new Graphics();
     restartButton.beginFill(0x4a90e2);
     restartButton.lineStyle(3, 0x6bb3ff);
-    restartButton.drawRoundedRect(0, 0, 200, 50, 10);
+    restartButton.drawRoundedRect(0, 0, restartBtnWidth, restartBtnHeight, 15);
     restartButton.endFill();
-    restartButton.x = GAME_WIDTH / 2 - 100;
-    restartButton.y = GAME_HEIGHT / 2 + 50;
+    restartButton.x = GAME_WIDTH / 2 - restartBtnWidth / 2;
+    restartButton.y = GAME_HEIGHT / 2 + 40;
     restartButton.interactive = true;
     restartButton.buttonMode = true;
     restartButton.cursor = 'pointer';
+    restartButton.hitArea = new Rectangle(
+      -restartHitPadding,
+      -restartHitPadding,
+      restartBtnWidth + restartHitPadding * 2,
+      restartBtnHeight + restartHitPadding * 2
+    );
     overlay.addChild(restartButton);
 
-    const restartLabel = new Text("Baştan Başla", {
+    const restartLabel = new Text("Play Again", {
       fontFamily: 'Arial',
-      fontSize: 18,
+      fontSize: 22,
       fill: 0xffffff,
       fontWeight: 'bold',
       align: 'center'
@@ -823,10 +841,10 @@ export default class Game extends Container {
   }
 
   /**
-   * UI oluştur
+   * Create UI
    */
   createUI() {
-    // Level numarası gizli (referans tasarımda yok)
+    // Level number hidden (not in reference design)
     this.levelText = new Text("", {
       fontFamily: 'Arial',
       fontSize: 1,
@@ -835,7 +853,7 @@ export default class Game extends Container {
     this.levelText.alpha = 0;
     this.addChild(this.levelText);
 
-    // Kelime sayacı gizli
+    // Word counter hidden
     this.wordCounter = new Text("", {
       fontFamily: 'Arial',
       fontSize: 1,
@@ -844,13 +862,13 @@ export default class Game extends Container {
     this.wordCounter.alpha = 0;
     this.addChild(this.wordCounter);
 
-    // Hint Banner (Yeşil yuvarlak bant - Grid altında)
+    // Hint Banner (Green rounded banner - below grid)
     this.hintBanner = new Graphics();
-    this.hintBanner.beginFill(0x4CAF50); // Yeşil
+    this.hintBanner.beginFill(0x4CAF50); // Green
     this.hintBanner.drawRoundedRect(0, 0, 280, 36, 18);
     this.hintBanner.endFill();
     this.hintBanner.x = (GAME_WIDTH - 280) / 2;
-    this.hintBanner.y = 280; // Grid altı
+    this.hintBanner.y = 280; // Default, will be updated in updateHintPosition
     this.addChild(this.hintBanner);
 
     this.hintText = new Text("Connect the letters", {
@@ -865,18 +883,18 @@ export default class Game extends Container {
     this.hintText.y = 298;
     this.addChild(this.hintText);
 
-    // PLAY NOW! Butonu (en altta)
+    // PLAY NOW! Button (at bottom)
     this.createPlayNowButton();
   }
 
   /**
-   * PLAY NOW butonu oluştur
+   * Create PLAY NOW button
    */
   createPlayNowButton() {
     const buttonWidth = 200;
     const buttonHeight = 50;
 
-    // Glow efekti için dış çerçeve
+    // Outer glow effect
     const glowOuter = new Graphics();
     glowOuter.beginFill(0x00ff88, 0.3);
     glowOuter.drawRoundedRect(-8, -8, buttonWidth + 16, buttonHeight + 16, 33);
@@ -886,7 +904,7 @@ export default class Game extends Container {
     this.addChild(glowOuter);
     this.glowOuter = glowOuter;
 
-    // Glow efekti için iç çerçeve
+    // Inner glow effect
     const glowInner = new Graphics();
     glowInner.beginFill(0x00ff88, 0.5);
     glowInner.drawRoundedRect(-4, -4, buttonWidth + 8, buttonHeight + 8, 29);
@@ -896,10 +914,10 @@ export default class Game extends Container {
     this.addChild(glowInner);
     this.glowInner = glowInner;
 
-    // Buton arka planı (parlak yeşil gradient efekti)
+    // Button background (bright green gradient effect)
     const playButton = new Graphics();
-    playButton.beginFill(0x00cc66); // Parlak yeşil
-    playButton.lineStyle(3, 0x00ff88); // Açık yeşil border
+    playButton.beginFill(0x00cc66); // Bright green
+    playButton.lineStyle(3, 0x00ff88); // Light green border
     playButton.drawRoundedRect(0, 0, buttonWidth, buttonHeight, 25);
     playButton.endFill();
     playButton.x = (GAME_WIDTH - buttonWidth) / 2;
@@ -910,7 +928,7 @@ export default class Game extends Container {
     this.addChild(playButton);
     this.playButton = playButton;
 
-    // Buton metni
+    // Button text
     const playText = new Text("PLAY NOW!", {
       fontFamily: 'Arial',
       fontSize: 20,
@@ -926,10 +944,10 @@ export default class Game extends Container {
     playText.y = GAME_HEIGHT - 30;
     this.addChild(playText);
 
-    // Parlaklık (Glow) animasyonu
+    // Glow animation
     this.startPlayButtonGlow();
 
-    // Hover efekti
+    // Hover effect
     playButton.on('pointerover', () => {
       playButton.alpha = 0.9;
     });
@@ -937,18 +955,18 @@ export default class Game extends Container {
       playButton.alpha = 1;
     });
 
-    // Tıklama (örn. install yönlendirme)
+    // Click (e.g. install redirect)
     playButton.on('pointerdown', () => {
       console.log("PLAY NOW clicked!");
-      // Burada store yönlendirme veya başka işlem yapılabilir
+      // Store redirect or other action can be done here
     });
   }
 
   /**
-   * PLAY NOW butonu parlaklık animasyonu
+   * PLAY NOW button glow animation
    */
   startPlayButtonGlow() {
-    // Sürekli pulse animasyonu
+    // Continuous pulse animation
     gsap.to(this.glowOuter, {
       alpha: 0.1,
       duration: 0.8,
@@ -966,7 +984,7 @@ export default class Game extends Container {
       delay: 0.2
     });
 
-    // Buton scale pulse - pivot ayarla
+    // Button scale pulse - set pivot
     const buttonWidth = 200;
     const buttonHeight = 50;
     this.playButton.pivot.set(buttonWidth / 2, buttonHeight / 2);
@@ -984,7 +1002,7 @@ export default class Game extends Container {
   }
 
   /**
-   * UI güncelle
+   * Update UI
    */
   updateUI() {
     if (this.level) {
@@ -996,5 +1014,20 @@ export default class Game extends Container {
     if (this.levelText && this.levelData) {
       this.levelText.text = this.levelData.name;
     }
+  }
+
+  /**
+   * Update hint banner position based on grid size
+   */
+  updateHintPosition() {
+    if (!this.grid || !this.hintBanner || !this.hintText) return;
+
+    // Calculate grid bottom position
+    const gridBottom = this.grid.y + this.grid.gridHeight * (this.grid.cellSize + this.grid.cellGap);
+
+    // Position hint banner 15px below grid
+    const bannerY = gridBottom + 15;
+    this.hintBanner.y = bannerY;
+    this.hintText.y = bannerY + 18; // Center text in banner
   }
 }

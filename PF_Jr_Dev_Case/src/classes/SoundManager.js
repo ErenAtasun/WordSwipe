@@ -1,13 +1,13 @@
 /**
- * SoundManager - Web Audio API ile programatik ses efektleri
- * Dosya yüklemeden, kod ile ses oluşturur
+ * SoundManager - Programmatic sound effects with Web Audio API
+ * Creates sounds in code, no file loading needed
  */
 class SoundManager {
     static audioContext = null;
     static isInitialized = false;
 
     /**
-     * AudioContext başlat (kullanıcı etkileşimi gerektirir)
+     * Initialize AudioContext (requires user interaction)
      */
     static init() {
         if (this.isInitialized) return;
@@ -17,12 +17,12 @@ class SoundManager {
             this.isInitialized = true;
             console.log("SoundManager initialized");
         } catch (e) {
-            console.warn("Web Audio API desteklenmiyor:", e);
+            console.warn("Web Audio API not supported:", e);
         }
     }
 
     /**
-     * Ses çal
+     * Play sound
      * @param {string} soundType - 'correct', 'wrong', 'wordComplete', 'levelComplete'
      */
     static play(soundType) {
@@ -33,7 +33,7 @@ class SoundManager {
 
         if (!this.audioContext) return;
 
-        // Suspended ise resume et
+        // Resume if suspended
         if (this.audioContext.state === 'suspended') {
             this.audioContext.resume();
         }
@@ -52,18 +52,18 @@ class SoundManager {
                 this.playLevelCompleteSound();
                 break;
             default:
-                console.warn("Bilinmeyen ses tipi:", soundType);
+                console.warn("Unknown sound type:", soundType);
         }
     }
 
     /**
-     * Doğru cevap sesi - Kısa pozitif "ding"
+     * Correct answer sound - Short positive "ding"
      */
     static playCorrectSound() {
         const ctx = this.audioContext;
         const now = ctx.currentTime;
 
-        // Oscillator (ana ses)
+        // Oscillator (main sound)
         const osc = ctx.createOscillator();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(880, now); // A5
@@ -82,13 +82,13 @@ class SoundManager {
     }
 
     /**
-     * Yanlış cevap sesi - Kısa "buzz"
+     * Wrong answer sound - Short "buzz"
      */
     static playWrongSound() {
         const ctx = this.audioContext;
         const now = ctx.currentTime;
 
-        // İki oscillator ile buzzy ses
+        // Two oscillators for buzzy sound
         const osc1 = ctx.createOscillator();
         osc1.type = 'sawtooth';
         osc1.frequency.setValueAtTime(150, now);
@@ -112,7 +112,7 @@ class SoundManager {
     }
 
     /**
-     * Kelime tamamlama sesi - Mutlu kısa melodi
+     * Word complete sound - Happy short melody
      */
     static playWordCompleteSound() {
         const ctx = this.audioContext;
@@ -139,13 +139,13 @@ class SoundManager {
     }
 
     /**
-     * Level tamamlama sesi - Fanfar/kutlama melodisi
+     * Level complete sound - Fanfare/celebration melody
      */
     static playLevelCompleteSound() {
         const ctx = this.audioContext;
         const now = ctx.currentTime;
 
-        // Fanfar melodisi: C-E-G-C (octave)
+        // Fanfare melody: C-E-G-C (octave)
         const notes = [
             { freq: 523.25, time: 0, dur: 0.15 },      // C5
             { freq: 659.25, time: 0.15, dur: 0.15 },   // E5
@@ -171,7 +171,7 @@ class SoundManager {
             osc.stop(now + note.time + note.dur + 0.1);
         });
 
-        // Harmonik katman
+        // Harmonic layer
         const pad = ctx.createOscillator();
         pad.type = 'sine';
         pad.frequency.setValueAtTime(261.63, now); // C4 (bass)
@@ -190,7 +190,7 @@ class SoundManager {
     }
 }
 
-// Global erişim için window'a ekle
+// Add to window for global access
 window.SoundManager = SoundManager;
 
 export default SoundManager;

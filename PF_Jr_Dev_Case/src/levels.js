@@ -1,5 +1,5 @@
 /**
- * Level Verileri - Crossword tarzı düzen
+ * Level Data - Crossword style layout
  */
 export const LEVELS = [
   {
@@ -19,7 +19,7 @@ export const LEVELS = [
     // A N O I  (row 1)
     // I D E D  (row 2)
     // L O V E  (row 3)
-    // STAR yatay, SAIL dikey, RIDE dikey, LOVE yatay
+    // STAR horizontal, SAIL vertical, RIDE vertical, LOVE horizontal
     words: "0,0,STAR,H|0,0,SAIL,V|3,0,RIDE,V|0,3,LOVE,H"
   },
   {
@@ -29,7 +29,7 @@ export const LEVELS = [
     // B E A R  (row 0)
     // A   R    (row 1)
     // R A E    (row 2)
-    // BEAR yatay, BAR dikey, ARE dikey (A'dan), EAR yatay 
+    // BEAR horizontal, BAR vertical, ARE vertical (from A), EAR horizontal
     words: "0,0,BEAR,H|0,0,BAR,V|2,0,ARE,V|0,2,RAE,H"
   },
   {
@@ -40,7 +40,7 @@ export const LEVELS = [
     // I       (row 1)
     // S       (row 2)
     // H I S   (row 3)
-    // FISH yatay, sadece basit yapı
+    // FISH horizontal, simple layout only
     words: "0,0,FISH,H|3,0,HIS,V"
   },
   {
@@ -50,7 +50,7 @@ export const LEVELS = [
     // T R E E  (row 0)
     // R   E    (row 1)
     // E E R    (row 2)
-    // TREE yatay, TRE dikey (T'den)
+    // TREE horizontal, TRE vertical (from T)
     words: "0,0,TREE,H|0,0,TRE,V"
   },
   {
@@ -60,7 +60,7 @@ export const LEVELS = [
     // M O O N  (row 0)
     // O   O    (row 1)
     // O N O    (row 2)
-    // MOON yatay, MOO dikey, NOO dikey (N'den)
+    // MOON horizontal, MOO vertical, NOO vertical (from N)
     words: "0,0,MOON,H|0,0,MOO,V|2,0,OON,V"
   },
   {
@@ -70,7 +70,7 @@ export const LEVELS = [
     // S T A R  (row 0)
     // T   A    (row 1)
     // A R T    (row 2)
-    // STAR yatay, STA dikey, RAT dikey (R'den), ART yatay
+    // STAR horizontal, STA vertical, RAT vertical (from R), ART horizontal
     words: "0,0,STAR,H|0,0,STA,V|3,0,RAT,V|0,2,ART,H"
   },
   {
@@ -80,7 +80,7 @@ export const LEVELS = [
     // L O V E  (row 0)
     // O   O    (row 1)
     // V O L    (row 2)
-    // LOVE yatay, LOV dikey, EVO dikey (E'den)
+    // LOVE horizontal, LOV vertical, EVO vertical (from E)
     words: "0,0,LOVE,H|0,0,LOV,V|3,0,EVO,V"
   },
   {
@@ -90,7 +90,7 @@ export const LEVELS = [
     // B O O K  (row 0)
     // O   O    (row 1)
     // O K O    (row 2)
-    // BOOK yatay, BOO dikey
+    // BOOK horizontal, BOO vertical
     words: "0,0,BOOK,H|0,0,BOO,V"
   },
   {
@@ -100,20 +100,20 @@ export const LEVELS = [
     // H O M E  (row 0)
     // O   O    (row 1)
     // M E H    (row 2)
-    // HOME yatay, HOM dikey
+    // HOME horizontal, HOM vertical
     words: "0,0,HOME,H|0,0,HOM,V|3,0,EMO,V"
   }
 ];
 
 /**
- * Level ID'ye göre level verisi al
+ * Get level data by ID
  */
 export function getLevelById(id) {
   return LEVELS.find(level => level.id === id);
 }
 
 /**
- * Toplam level sayısı
+ * Get total level count
  */
 export function getTotalLevels() {
   return LEVELS.length;

@@ -2,8 +2,8 @@ import { Container, Graphics, Sprite, Text } from "pixi.js";
 import gsap from "gsap";
 
 /**
- * Tutorial Class - Aktif kelime için el/ok animasyonu
- * Yeşil instruction text'indeki kelimeyi gösterir
+ * Tutorial Class - Hand/arrow animation for active word
+ * Shows the word from the green instruction text
  */
 export default class Tutorial extends Container {
     constructor(tray) {
@@ -15,16 +15,16 @@ export default class Tutorial extends Container {
         this.timeline = null;
         this.pathLine = null;
 
-        // Aktif kelime (dışarıdan set edilecek)
+        // Active word (will be set from outside)
         this.currentWord = null;
     }
 
     /**
-     * Belirli bir kelime için tutorial başlat
-     * @param {string} word - Gösterilecek kelime (örn: "GOLD")
+     * Start tutorial for specific word
+     * @param {string} word - Word to show (e.g. "GOLD")
      */
     startForWord(word) {
-        // Önceki animasyonu temizle
+        // Clear previous animation
         this.stopAnimation();
 
         if (!word || word.length === 0) return;
@@ -32,23 +32,23 @@ export default class Tutorial extends Container {
         this.currentWord = word;
         this.isPlaying = true;
 
-        // El sprite'ı yoksa oluştur
+        // Create hand sprite if not exists
         if (!this.handSprite) {
             this.createHand();
         }
 
-        // Çizgi için Graphics yoksa oluştur
+        // Create Graphics for line if not exists
         if (!this.pathLine) {
             this.pathLine = new Graphics();
             this.addChildAt(this.pathLine, 0);
         }
 
-        // Bu kelime için animasyonu başlat
+        // Start animation for this word
         this.playWordAnimation();
     }
 
     /**
-     * Kelime animasyonunu oynat (döngü)
+     * Play word animation (loop)
      */
     playWordAnimation() {
         if (!this.isPlaying || !this.currentWord) return;
@@ -57,20 +57,20 @@ export default class Tutorial extends Container {
         const positions = this.getLetterPositions(letterOrder);
 
         if (positions.length < letterOrder.length) {
-            // Yeterli harf bulunamadı, bekle ve tekrar dene
+            // Not enough letters found, wait and try again
             gsap.delayedCall(0.5, () => this.playWordAnimation());
             return;
         }
 
-        // Animasyon oluştur
+        // Create animation
         this.createSwipeAnimation(positions, () => {
-            // Animasyon bitti, tekrar başlat
+            // Animation finished, restart
             gsap.delayedCall(0.8, () => this.playWordAnimation());
         });
     }
 
     /**
-     * Animasyonu durdur (timeline'ı temizle)
+     * Stop animation (clear timeline)
      */
     stopAnimation() {
         if (this.timeline) {
@@ -86,38 +86,38 @@ export default class Tutorial extends Container {
     }
 
     /**
-     * GOLD kelimesi için tutorial başlat (uyumluluk için)
+     * Start tutorial for GOLD word (for compatibility)
      */
     startGoldTutorial() {
         this.startForWord('GOLD');
     }
 
     /**
-     * El sprite'ı oluştur
+     * Create hand sprite
      */
     createHand() {
         try {
             this.handSprite = Sprite.from("hand");
             this.handSprite.width = 60;
             this.handSprite.height = 60;
-            this.handSprite.anchor.set(0.2, 0.1); // Parmak ucu için
+            this.handSprite.anchor.set(0.2, 0.1); // For fingertip
             this.handSprite.alpha = 0;
             this.addChild(this.handSprite);
         } catch (e) {
-            // Hand asset yoksa ok çiz
-            console.log("Hand asset yok, ok çiziliyor");
+            // Draw arrow if hand asset not available
+            console.log("Hand asset not found, drawing arrow");
             this.handSprite = this.createArrow();
             this.addChild(this.handSprite);
         }
     }
 
     /**
-     * Fallback: Ok işareti oluştur
+     * Fallback: Create arrow shape
      */
     createArrow() {
         const arrow = new Graphics();
         arrow.beginFill(0xFFFFFF);
-        // Ok şekli
+        // Arrow shape
         arrow.moveTo(0, 0);
         arrow.lineTo(-15, 20);
         arrow.lineTo(-5, 20);
@@ -132,14 +132,14 @@ export default class Tutorial extends Container {
     }
 
     /**
-     * Belirli sıradaki harflerin pozisyonlarını al
+     * Get positions of letters in specified order
      */
     getLetterPositions(letterOrder) {
         const positions = [];
         const usedTiles = new Set();
 
         for (const targetLetter of letterOrder) {
-            // Bu harfi henüz kullanmadığımız bir tile'da bul
+            // Find this letter in an unused tile
             const tile = this.tray.tiles.find(t =>
                 t.letter === targetLetter &&
                 !t.isUsed &&
@@ -156,22 +156,22 @@ export default class Tutorial extends Container {
     }
 
     /**
-     * Swipe animasyonu oluştur
+     * Create swipe animation
      */
     createSwipeAnimation(positions, onComplete) {
-        // Timeline varsa temizle
+        // Clear existing timeline
         if (this.timeline) {
             this.timeline.kill();
         }
 
-        // Çizgiyi temizle
+        // Clear line
         this.pathLine.clear();
 
-        // İlk pozisyona git
+        // Go to first position
         this.handSprite.x = positions[0].x;
         this.handSprite.y = positions[0].y;
 
-        // Timeline oluştur
+        // Create timeline
         this.timeline = gsap.timeline({
             onComplete: () => {
                 this.pathLine.clear();
@@ -185,17 +185,17 @@ export default class Tutorial extends Container {
             duration: 0.3
         });
 
-        // İlk noktada bekle
+        // Wait at first point
         this.timeline.to(this.handSprite, {
             duration: 0.2
         });
 
-        // Her harfe sırayla git
+        // Go to each letter in order
         for (let i = 1; i < positions.length; i++) {
             const toPos = positions[i];
             const currentIndex = i;
 
-            // Swipe animasyonu
+            // Swipe animation
             this.timeline.to(this.handSprite, {
                 x: toPos.x,
                 y: toPos.y,
@@ -206,13 +206,13 @@ export default class Tutorial extends Container {
                 }
             });
 
-            // Kısa bekle
+            // Short wait
             this.timeline.to(this.handSprite, {
                 duration: 0.1
             });
         }
 
-        // Son noktada bekle
+        // Wait at last point
         this.timeline.to(this.handSprite, {
             duration: 0.4
         });
@@ -228,18 +228,18 @@ export default class Tutorial extends Container {
     }
 
     /**
-     * Swipe path'ini çiz
+     * Draw swipe path
      */
     drawPath(positions, currentIndex) {
         this.pathLine.clear();
-        this.pathLine.lineStyle(4, 0xF39C12, 0.6); // Turuncu çizgi
+        this.pathLine.lineStyle(4, 0xF39C12, 0.6); // Orange line
 
         if (positions.length > 0) {
             this.pathLine.moveTo(positions[0].x, positions[0].y);
 
             for (let i = 1; i <= currentIndex; i++) {
                 if (i < positions.length) {
-                    // Animasyon sırasında el pozisyonuna çiz
+                    // Draw to hand position during animation
                     if (i === currentIndex) {
                         this.pathLine.lineTo(this.handSprite.x, this.handSprite.y);
                     } else {
@@ -251,21 +251,21 @@ export default class Tutorial extends Container {
     }
 
     /**
-     * Tutorial'ı durdur
+     * Stop tutorial
      */
     stop() {
         this.isPlaying = false;
         this.currentWord = null;
         this.stopAnimation();
 
-        // Container'ı temizle
+        // Clear container
         this.removeChildren();
         this.handSprite = null;
         this.pathLine = null;
     }
 
     /**
-     * Tutorial'ı yok et
+     * Destroy tutorial
      */
     destroy() {
         this.stop();

@@ -2,7 +2,7 @@ import { Container, Graphics, Text, Sprite } from "pixi.js";
 import gsap from "gsap";
 
 /**
- * LetterTile Class - Seçilebilir harf karesi (Line Connect için)
+ * LetterTile Class - Selectable letter square (for Line Connect)
  */
 export default class LetterTile extends Container {
   constructor(letter, size = 60) {
@@ -14,15 +14,15 @@ export default class LetterTile extends Container {
     this.isUsed = false;
     this.center = { x: size / 2, y: size / 2 }; // Local center
 
-    // Etkileşim için
+    // For interaction
     this.interactive = true;
-    this.buttonMode = true; // El imleci
+    this.buttonMode = true; // Hand cursor
 
     this.createVisual();
   }
 
   /**
-   * Kullanıldı durumunu ayarla
+   * Set used state
    */
   setUsed(used) {
     this.isUsed = used;
@@ -30,57 +30,57 @@ export default class LetterTile extends Container {
     this.buttonMode = !used;
 
     gsap.to(this, {
-      alpha: used ? 0 : 1, // Tamamen gizle veya silik yap
+      alpha: used ? 0 : 1, // Completely hide or fade out
       duration: 0.2
     });
   }
 
   /**
-   * Görsel oluştur
+   * Create visual
    */
   createVisual() {
     this.removeChildren();
 
-    // Arka plan yok (transparan) - Referans görselde harf yalnız görünüyor
-    // Sadece harf metni göster
+    // No background (transparent) - In reference only letter is visible
+    // Just show letter text
     this.text = new Text(this.letter, {
       fontFamily: 'Arial',
       fontSize: 42,
-      fill: 0xF39C12, // Turuncu renk
+      fill: 0xF39C12, // Orange color
       fontWeight: 'bold',
       align: 'center'
     });
     this.text.anchor.set(0.5);
-    this.text.x = 0; // Merkeze (anchor 0.5 ile)
+    this.text.x = 0; // Center (with anchor 0.5)
     this.text.y = 0;
     this.addChild(this.text);
   }
 
   /**
-   * Seçilme durumu (Vurgu)
+   * Selection state (Highlight)
    */
   select() {
     if (this.isSelected) return;
     this.isSelected = true;
 
-    // Büyüt ve renk değiştir
+    // Scale up and change color
     gsap.to(this.scale, { x: 1.3, y: 1.3, duration: 0.1 });
-    this.text.style.fill = 0xFFFFFF; // Beyaz
+    this.text.style.fill = 0xFFFFFF; // White
   }
 
   /**
-   * Seçimi kaldır
+   * Deselect
    */
   deselect() {
     if (!this.isSelected) return;
     this.isSelected = false;
 
     gsap.to(this.scale, { x: 1, y: 1, duration: 0.1 });
-    this.text.style.fill = 0xF39C12; // Turuncu geri
+    this.text.style.fill = 0xF39C12; // Orange back
   }
 
   /**
-   * Doğru kelime bulunduğunda animasyon
+   * Animation when correct word found
    */
   animateSuccess() {
     gsap.to(this, {
@@ -91,7 +91,7 @@ export default class LetterTile extends Container {
   }
 
   /**
-   * Yanlış kelime (sallanma)
+   * Wrong word (shake)
    */
   animateError() {
     gsap.to(this, {
@@ -100,10 +100,8 @@ export default class LetterTile extends Container {
       yoyo: true,
       repeat: 5,
       onComplete: () => {
-        this.x = this.originalX || this.x; // Geri dön
+        this.x = this.originalX || this.x; // Return back
       }
     });
   }
 }
-
-

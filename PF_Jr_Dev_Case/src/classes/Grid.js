@@ -3,7 +3,7 @@ import gsap from "gsap";
 import { GAME_WIDTH } from "..";
 
 /**
- * Grid Class - Oyun tahtasını temsil eder
+ * Grid Class - Represents the game board
  */
 export default class Grid extends Container {
   constructor(level, cellSize = 50) {
@@ -11,7 +11,7 @@ export default class Grid extends Container {
 
     this.level = level;
     this.cellSize = cellSize;
-    this.cellGap = 4; // Hücreler arası boşluk
+    this.cellGap = 4; // Gap between cells
     this.gridWidth = 0;
     this.gridHeight = 0;
     this.cells = []; // 2D array: cells[y][x]
@@ -22,7 +22,7 @@ export default class Grid extends Container {
   }
 
   /**
-   * Grid boyutunu hesapla
+   * Calculate grid size
    */
   calculateGridSize() {
     let maxX = 0;
@@ -41,20 +41,20 @@ export default class Grid extends Container {
     this.gridWidth = maxX;
     this.gridHeight = maxY;
 
-    // Grid'i ekranın üst orta kısmına al (referans tasarım)
+    // Position grid at top center of screen (reference design)
     const totalWidth = this.gridWidth * (this.cellSize + this.cellGap);
     this.x = (GAME_WIDTH - totalWidth) / 2;
     this.y = 80;
   }
 
   /**
-   * Grid görselini oluştur
+   * Create grid visual
    */
   createGrid() {
-    // Arka plan yok - transparan olacak
-    // Hücreler direkt eklenecek
+    // No background - will be transparent
+    // Cells will be added directly
 
-    // Hücreleri oluştur
+    // Create cells
     this.cells = [];
     for (let y = 0; y < this.gridHeight; y++) {
       this.cells[y] = [];
@@ -67,27 +67,27 @@ export default class Grid extends Container {
   }
 
   /**
-   * Tek bir hücre oluştur
+   * Create a single cell
    */
   createCell(x, y) {
     const cell = new Container();
     cell.x = x * (this.cellSize + this.cellGap);
     cell.y = y * (this.cellSize + this.cellGap);
 
-    // Bu hücrede bir kelime var mı kontrol et
+    // Check if there's a word at this cell
     const word = this.level.getWordAtPosition(x, y);
 
     if (word) {
-      // Kelime hücresi - Krem/Beyaz arka plan (referans tasarım)
+      // Word cell - Cream/White background (reference design)
       const bg = new Graphics();
-      bg.beginFill(0xFFFBF0); // Açık krem
+      bg.beginFill(0xFFFBF0); // Light cream
       bg.lineStyle(1, 0xE0D5C5);
       bg.drawRoundedRect(0, 0, this.cellSize, this.cellSize, 6);
       bg.endFill();
       cell.addChild(bg);
       cell.bgGraphics = bg;
     }
-    // Kelime olmayan hücreler için arka plan ekleme (transparan kalacak)
+    // No background for cells without words (stays transparent)
 
     cell.cellX = x;
     cell.cellY = y;
@@ -97,7 +97,7 @@ export default class Grid extends Container {
   }
 
   /**
-   * Grid üzerindeki bir pozisyonu dünya koordinatlarına çevir
+   * Convert world coordinates to grid position
    */
   worldToGrid(worldX, worldY) {
     const localX = worldX - this.x;
@@ -111,7 +111,7 @@ export default class Grid extends Container {
   }
 
   /**
-   * Grid koordinatlarını dünya koordinatlarına çevir
+   * Convert grid coordinates to world coordinates
    */
   gridToWorld(gridX, gridY) {
     const cellTotal = this.cellSize + this.cellGap;
@@ -122,7 +122,7 @@ export default class Grid extends Container {
   }
 
   /**
-   * Bir harfi grid'e yerleştir
+   * Place a letter on grid
    */
   placeLetter(x, y, letter) {
     const key = `${x},${y}`;
@@ -135,7 +135,7 @@ export default class Grid extends Container {
   }
 
   /**
-   * Bir pozisyondaki harfi kaldır
+   * Remove letter at position
    */
   removeLetter(x, y) {
     const key = `${x},${y}`;
@@ -148,7 +148,7 @@ export default class Grid extends Container {
   }
 
   /**
-   * Bir pozisyonda harf var mı?
+   * Check if position has a letter
    */
   hasLetter(x, y) {
     const key = `${x},${y}`;
@@ -156,7 +156,7 @@ export default class Grid extends Container {
   }
 
   /**
-   * Bir pozisyondaki harfi al
+   * Get letter at position
    */
   getLetter(x, y) {
     const key = `${x},${y}`;
@@ -164,19 +164,19 @@ export default class Grid extends Container {
   }
 
   /**
-   * Bir harfi visual olarak göster (Grid üzerinde)
-   * isTemp: Geçici harf (henüz onaylanmamış)
+   * Show a letter visually (on grid)
+   * isTemp: Temporary letter (not confirmed yet)
    */
   showLetter(x, y, letter, isTemp = false) {
-    console.log("showLetter çağrıldı:", letter, "->", x, y, "Grid boyutu:", this.gridWidth, "x", this.gridHeight);
+    console.log("showLetter called:", letter, "->", x, y, "Grid size:", this.gridWidth, "x", this.gridHeight);
     const cell = this.cells[y] && this.cells[y][x];
     if (!cell) {
-      console.error("Cell bulunamadı:", x, y, "cells[y]:", this.cells[y]);
+      console.error("Cell not found:", x, y, "cells[y]:", this.cells[y]);
       return;
     }
-    console.log("Cell bulundu, harf ekleniyor...");
+    console.log("Cell found, adding letter...");
 
-    // Eski temp text varsa sil
+    // Delete existing temp text
     const existingText = cell.getChildByName("letterText");
     if (existingText) {
       cell.removeChild(existingText);
@@ -185,7 +185,7 @@ export default class Grid extends Container {
     const text = new Text(letter, {
       fontFamily: 'Arial',
       fontSize: 32,
-      fill: 0xffffff, // Beyaz yazı (turuncu arka plan üzerinde)
+      fill: 0xffffff, // White text (on orange background)
       fontWeight: 'bold',
       align: 'center'
     });
@@ -194,14 +194,14 @@ export default class Grid extends Container {
     text.y = this.cellSize / 2;
     text.name = "letterText";
 
-    // Geçici harfler tıklanabilir olsun
+    // Temp letters should be clickable
     if (isTemp) {
       text.interactive = true;
       text.buttonMode = true;
       text.cursor = 'pointer';
       text.on('pointerdown', (e) => {
         e.stopPropagation();
-        // Callback varsa tetikle
+        // Trigger callback if exists
         if (this.onTempLetterClickCallback) {
           this.onTempLetterClickCallback(x, y, letter);
         }
@@ -210,14 +210,14 @@ export default class Grid extends Container {
 
     cell.addChild(text);
 
-    // Animasyon (Reveal)
+    // Animation (Reveal)
     text.scale.set(0);
     gsap.to(text.scale, { x: 1, y: 1, duration: 0.3, ease: "back.out(1.7)" });
 
-    // Arka planı turuncu yap (referans tasarım)
+    // Make background orange (reference design)
     if (cell.bgGraphics) {
       cell.bgGraphics.clear();
-      cell.bgGraphics.beginFill(0xF39C12); // Turuncu
+      cell.bgGraphics.beginFill(0xF39C12); // Orange
       cell.bgGraphics.lineStyle(2, 0xE67E22);
       cell.bgGraphics.drawRoundedRect(2, 2, this.cellSize - 4, this.cellSize - 4, 8);
       cell.bgGraphics.endFill();
@@ -225,14 +225,14 @@ export default class Grid extends Container {
   }
 
   /**
-   * Geçici harf tıklama callback'i ayarla
+   * Set temp letter click callback
    */
   setOnTempLetterClickCallback(cb) {
     this.onTempLetterClickCallback = cb;
   }
 
   /**
-   * Geçici harfi kaldır (visual olarak)
+   * Remove temporary letter (visually)
    */
   removeTemporaryLetter(x, y) {
     const cell = this.cells[y][x];
@@ -241,7 +241,7 @@ export default class Grid extends Container {
     if (text) {
       cell.removeChild(text);
     }
-    // Arka planı krem rengine geri döndür
+    // Return background to cream color
     if (cell.bgGraphics) {
       cell.bgGraphics.clear();
       cell.bgGraphics.beginFill(0xFFF8E7);
@@ -252,10 +252,10 @@ export default class Grid extends Container {
   }
 
   /**
-   * Kelimeyi vurgula (Aktif hedef)
+   * Highlight word (active target)
    */
   highlightWordTarget(wordData) {
-    // Önce tüm grid highlightlarını temizle
+    // First clear all grid highlights
     this.clearHighlights();
 
     const { x, y, word, orientation } = wordData;
@@ -269,41 +269,41 @@ export default class Grid extends Container {
         cellY = y + i;
       }
       const cell = this.cells[cellY][cellX];
-      // Hafif highlight - zaten krem renkte
+      // Light highlight - already cream color
     }
   }
 
   clearHighlights() {
-    // Yeni tasarımda highlight yok, krem renk default
+    // No highlight in new design, cream color is default
   }
 
   /**
-   * Grid'i temizle
+   * Clear grid
    */
   clear() {
     this.placedLetters = {};
     this.cells.forEach(row => {
       row.forEach(cell => {
         cell.isEmpty = true;
-        // Textleri temizle (sonradan eklenen child'lar)
-        // bgSprite ve background hariç
+        // Clear texts (later added children)
+        // Except bgSprite and background
         if (cell.children.length > 2) {
-          // Bu biraz riskli, container yapısını tam bilmek lazım.
-          // createCell metoduna bakarsak: bg veya bgSprite ekleniyor.
-          // Sonra biz text ekliyoruz.
-          // En iyisi cell.removeChildren() yapıp createCell mantığını tekrar çağırmak veya sadece textleri silmek.
-          // Basitçe:
+          // This is a bit risky, need to know container structure exactly
+          // Looking at createCell method: bg or bgSprite is added
+          // Then we add text
+          // Best is to call removeChildren() and re-call createCell logic or just delete texts
+          // Simply:
           cell.removeChildren();
-          // Arka planı geri yükle
+          // Restore background
           if (cell.bgSprite) {
             cell.bgSprite.tint = 0xFFFFFF;
             cell.addChild(cell.bgSprite);
           } else {
-            // Graphics çizimi... createCell'den kopyalamak yerine,
-            // Hücreleri tamamen yeniden oluşturmak daha temiz olabilir Game.js loadLevel'da.
-            // Ancak clear() metodu varsa düzgün çalışmalı.
-            // Şimdilik sadece text/extra childları temizleyelim.
-            // İlk child hep BG.
+            // Graphics drawing... instead of copying from createCell,
+            // Recreating cells entirely might be cleaner in Game.js loadLevel
+            // But if clear() method exists it should work properly
+            // For now just clear text/extra children
+            // First child is always BG
             const bg = cell.children[0];
             cell.removeChildren();
             cell.addChild(bg);
@@ -313,4 +313,3 @@ export default class Grid extends Container {
     });
   }
 }
-
